@@ -5,6 +5,7 @@ User = get_user_model()
 
 
 class Post(models.Model):
+    SYMBOL_POST_QUANTITY = 15
     text = models.TextField(
         verbose_name='Тест', help_text='Введите текст поста'
     )

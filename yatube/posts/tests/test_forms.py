@@ -12,7 +12,6 @@ class TestCreateForm(TestCase):
     def setUpClass(cls):
         '''Вызывается один раз перед запуском всех тестов класса.'''
         super().setUpClass()
-        # cls.user = User.objects.create_user(username='Автор Мокрушин')
         cls.author = User.objects.create_user(
             username='Мокрушин',
             first_name='Евгений',
@@ -26,17 +25,13 @@ class TestCreateForm(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.author,
-            text='Тестовый текст поста для формы',
+            text='Тестовый текст поста',
             group=cls.group,
         )
 
     def setUp(self):
         '''Подготовка прогона теста. Вызывается перед каждым тестом.'''
-        # Создаем неавторизованный клиент
-        self.guest_client = Client()
-        # Создаем второй авторизованный клиент
         self.authorized_client = Client()
-        # Авторизуем пользователя
         self.authorized_client.force_login(self.author)
 
     def test_form_create(self):
@@ -50,19 +45,21 @@ class TestCreateForm(TestCase):
             reverse('posts:post_create'), data=form_data, follow=True
         )
         self.assertRedirects(
-            response, reverse('posts:profile', args={self.author.username})
+            response,
+            reverse('posts:profile', args=[self.post.author.username]),
         )
         self.assertEqual(Post.objects.count(), post_count + 1)
-        self.assertTrue(
-            Post.objects.filter(
-                text='Тестовый текст поста для формы',
-                group=TestCreateForm.group,
-            ).exists()
-        )
+        object = Post.objects.get(text='Тестовый текст поста для формы')
+        post_text_0 = object.text
+        post_group_0 = object.group.id
+        post_author_0 = object.author
+        self.assertEqual(post_text_0, form_data['text'])
+        self.assertEqual(post_group_0, form_data['group'])
+        self.assertEqual(post_author_0, self.author)
 
     def test_form_update(self):
         '''Проверка редактирования поста через форму на странице.'''
-        url = reverse('posts:post_edit', args={self.post.pk})
+        url = reverse('posts:post_edit', args=[self.post.pk])
         self.authorized_client.get(url)
         # Инфо для изменения текста поста
         form_data = {
@@ -71,13 +68,11 @@ class TestCreateForm(TestCase):
         }
         # Отправляем POST запрос на изменения текста поста
         self.authorized_client.post(
-            reverse('posts:post_edit', args={self.post.pk}),
+            reverse('posts:post_edit', args=[self.post.pk]),
             data=form_data,
             follow=True,
         )
+        object = Post.objects.get(text='Обновленный текст поста')
+        post_text_0 = object.text
         # Проверяем что запись с измененным текстом поста сохранилась
-        self.assertTrue(
-            Post.objects.filter(
-                text='Обновленный текст поста', group=TestCreateForm.group
-            ).exists()
-        )
+        self.assertEqual(post_text_0, 'Обновленный текст поста')
