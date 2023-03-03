@@ -1,8 +1,8 @@
 from http import HTTPStatus
-from django.urls import reverse
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+from django.urls import reverse
 
 from ..models import Group, Post
 
@@ -28,12 +28,8 @@ class PostUrlTest(TestCase):
 
     def setUp(self):
         '''Подготовка прогона теста. Вызывается перед каждым тестом.'''
-        # Создаем неавторизованный клиент
         self.guest_client = Client()
-
-        # Создаем второй авторизованный клиент
         self.authorized_client = Client()
-        # Авторизуем пользователя
         self.authorized_client.force_login(self.user)
 
     def test_status_code_template_non_auth_and_auth(self):
@@ -41,72 +37,91 @@ class PostUrlTest(TestCase):
         авторизированного пользователя.
         '''
         templates_url_names = [
-            ('/', HTTPStatus.OK, False),
+            (reverse('posts:index'), HTTPStatus.OK, self.guest_client),
             (
-                f'/group/{self.group.slug}/',
+                reverse('posts:group_list', kwargs={'slug': self.group.slug}),
                 HTTPStatus.OK,
-                False,
+                self.guest_client,
             ),
             (
-                f'/profile/{self.user}/',
+                reverse('posts:profile', kwargs={'username': self.user}),
                 HTTPStatus.OK,
-                False,
+                self.guest_client,
             ),
-            (f'/posts/{self.post.id}/', HTTPStatus.OK, False),
-            ('/about/tech/', HTTPStatus.OK, False),
-            ('/about/author/', HTTPStatus.OK, False),
-            ('/auth/login/', HTTPStatus.OK, False),
-            (f'/posts/{self.post.id}/edit/', HTTPStatus.FOUND, False),
-            ('/create/', HTTPStatus.OK, True),
-            ('/auth/password_change/', HTTPStatus.OK, True),
-            ('/auth/password_reset/', HTTPStatus.OK, True),
-            ('/auth/logout/', HTTPStatus.OK, True),
-            ('/unexisting_page', HTTPStatus.NOT_FOUND, False),
+            (
+                reverse('posts:post_detail', kwargs={'post_id': self.post.id}),
+                HTTPStatus.OK,
+                self.guest_client,
+            ),
+            (reverse('about:tech'), HTTPStatus.OK, self.guest_client),
+            (reverse('about:author'), HTTPStatus.OK, self.guest_client),
+            (reverse('users:login'), HTTPStatus.OK, self.guest_client),
+            (
+                reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
+                HTTPStatus.OK,
+                self.authorized_client,
+            ),
+            (
+                reverse('posts:post_create'),
+                HTTPStatus.OK,
+                self.authorized_client,
+            ),
+            (
+                reverse('users:password_change'),
+                HTTPStatus.OK,
+                self.authorized_client,
+            ),
+            (
+                reverse('users:password_reset_form'),
+                HTTPStatus.OK,
+                self.authorized_client,
+            ),
+            (reverse('users:logout'), HTTPStatus.OK, self.authorized_client),
+            ('/unexisting_page', HTTPStatus.NOT_FOUND, self.guest_client),
         ]
 
         for address, code, auth in templates_url_names:
             with self.subTest(address=address):
-                if auth:
+                if auth == self.authorized_client:
                     response = self.authorized_client.get(address)
-                    self.assertEqual(response.status_code, code)
-                elif not auth:
+                else:
                     response = self.guest_client.get(address)
-                    self.assertEqual(response.status_code, code)
+                self.assertEqual(response.status_code, code)
 
-    def test_status_code_template_non_aut(self):
-        '''Тесты шаблонов неавторизированного
-        пользователя.
-        '''
-        templates_url_names = [
-            ('/', 'posts/index.html'),
+    def test_status_code_template(self):
+        '''Тесты шаблонов пользователя.'''
+        templates_url_names = (
+            (reverse('posts:index'), 'posts/index.html'),
             (
-                f'/group/{self.group.slug}/',
+                reverse('posts:group_list', kwargs={'slug': self.group.slug}),
                 'posts/group_list.html',
             ),
-            (f'/profile/{self.user}/', 'posts/profile.html'),
             (
-                f'/posts/{self.post.id}/',
+                reverse('posts:profile', kwargs={'username': self.user}),
+                'posts/profile.html',
+            ),
+            (
+                reverse('posts:post_detail', kwargs={'post_id': self.post.id}),
                 'posts/post_detail.html',
             ),
-            ('/about/tech/', 'about/tech.html'),
-            ('/about/author/', 'about/author.html'),
-            ('/auth/login/', 'users/login.html'),
-        ]
-
-        for address, template in templates_url_names:
-            with self.subTest(address=address):
-                response = self.guest_client.get(address)
-                self.assertTemplateUsed(response, template)
-
-    def test_urls_correct_status_code_template_auth(self):
-        '''Тесты статусов ответов авторизированного пользователя.'''
-        templates_url_names = [
-            (f'/posts/{self.post.id}/edit/', 'posts/create_post.html'),
-            ('/create/', 'posts/create_post.html'),
-            ('/auth/password_change/', 'users/password_change_form.html'),
-            ('/auth/password_reset/', 'users/password_reset_form.html'),
-            ('/auth/logout/', 'users/logged_out.html'),
-        ]
+            (
+                reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
+                'posts/create_post.html',
+            ),
+            (
+                reverse('posts:post_create'),
+                'posts/create_post.html',
+            ),
+            (
+                reverse('users:password_change'),
+                'users/password_change_form.html',
+            ),
+            (
+                reverse('users:password_reset_form'),
+                'users/password_reset_form.html',
+            ),
+            (reverse('users:logout'), 'users/logged_out.html'),
+        )
 
         for address, template in templates_url_names:
             with self.subTest(address=address):
@@ -115,32 +130,22 @@ class PostUrlTest(TestCase):
 
     def test_post_edit_url_exists_at_desired_location(self):
         '''Страница /posts/<post_id>/edit/ доступна любому пользователю.'''
-        response = self.guest_client.get(f'/posts/{self.post.id}/edit/')
-        self.assertRedirects(
-            response, (f'/auth/login/?next=/posts/{self.post.id}/edit/')
+        addresses = (
+            (self.guest_client.get(f'/posts/{self.post.id}/edit/')),
+            self.guest_client.get(f'/posts/{self.post.id}/edit/', follow=True),
         )
 
-    def test_about_tech_url_exists_at_desired_location(self):
-        '''Страница / доступна любому пользователю.'''
-        response = self.guest_client.get('/about/tech/')
-        self.assertEqual(response.status_code, 200)
+        for address in addresses:
+            with self.subTest(address=address):
+                self.assertRedirects(
+                    address,
+                    (f'/auth/login/?next=/posts/{self.post.id}/edit/'),
+                )
 
     def test_post_create_url_exists_at_desired_location(self):
         '''Страница /create/ доступна любому пользователю.'''
         response = self.guest_client.get('/create/')
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
         self.assertRedirects(response, ('/auth/login/?next=/create/'))
-
-    def test_redirect_edit_post_url_unauthorized_user(self):
-        '''Проверка редиректа анонимного пользователя со страницы
-        редактирования поста
-        '''
-        response = self.guest_client.get(
-            f'/posts/{PostUrlTest.post.pk}/edit/', follow=True
-        )
-        self.assertRedirects(
-            response, (f'/auth/login/?next=/posts/{PostUrlTest.post.pk}/edit/')
-        )
 
     def test_name_address(self):
         '''Проверка соответствия фактических адресов страниц с их именами.'''
@@ -164,7 +169,6 @@ class PostUrlTest(TestCase):
                 reverse('posts:post_edit', args=[self.post.id]),
             ),
         ]
-
         for address, name in templates_address_names:
             with self.subTest(address=address):
                 self.assertEqual(address, name)

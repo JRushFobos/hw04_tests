@@ -49,30 +49,31 @@ class TestCreateForm(TestCase):
             reverse('posts:profile', args=[self.post.author.username]),
         )
         self.assertEqual(Post.objects.count(), post_count + 1)
-        object = Post.objects.get(text='Тестовый текст поста для формы')
-        post_text_0 = object.text
-        post_group_0 = object.group.id
-        post_author_0 = object.author
-        self.assertEqual(post_text_0, form_data['text'])
-        self.assertEqual(post_group_0, form_data['group'])
-        self.assertEqual(post_author_0, self.author)
+        object = Post.objects.latest('id')
+        self.assertEqual(object.text, form_data['text'])
+        self.assertEqual(object.group.id, form_data['group'])
+        self.assertEqual(object.author, self.post.author)
 
     def test_form_update(self):
         '''Проверка редактирования поста через форму на странице.'''
+        post_count = Post.objects.count()
         url = reverse('posts:post_edit', args=[self.post.pk])
         self.authorized_client.get(url)
-        # Инфо для изменения текста поста
         form_data = {
             'group': self.group.id,
             'text': 'Обновленный текст поста',
         }
-        # Отправляем POST запрос на изменения текста поста
-        self.authorized_client.post(
+        response = self.authorized_client.post(
             reverse('posts:post_edit', args=[self.post.pk]),
             data=form_data,
             follow=True,
         )
-        object = Post.objects.get(text='Обновленный текст поста')
-        post_text_0 = object.text
-        # Проверяем что запись с измененным текстом поста сохранилась
-        self.assertEqual(post_text_0, 'Обновленный текст поста')
+        object = Post.objects.get(id=self.post.id)
+        self.assertRedirects(
+            response,
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id}),
+        )
+        self.assertEqual(object.text, form_data['text'])
+        self.assertEqual(object.group.id, form_data['group'])
+        self.assertEqual(object.author, self.post.author)
+        self.assertEqual(Post.objects.count(), post_count)
