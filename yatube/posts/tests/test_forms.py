@@ -49,7 +49,7 @@ class TestCreateForm(TestCase):
             reverse('posts:profile', args=[self.post.author.username]),
         )
         self.assertEqual(Post.objects.count(), post_count + 1)
-        object = Post.objects.latest('id')
+        object = Post.objects.all().first()
         self.assertEqual(object.text, form_data['text'])
         self.assertEqual(object.group.id, form_data['group'])
         self.assertEqual(object.author, self.post.author)
@@ -57,8 +57,6 @@ class TestCreateForm(TestCase):
     def test_form_update(self):
         '''Проверка редактирования поста через форму на странице.'''
         post_count = Post.objects.count()
-        url = reverse('posts:post_edit', args=[self.post.pk])
-        self.authorized_client.get(url)
         form_data = {
             'group': self.group.id,
             'text': 'Обновленный текст поста',

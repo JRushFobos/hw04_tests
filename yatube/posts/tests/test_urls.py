@@ -20,6 +20,12 @@ class PostUrlTest(TestCase):
             slug='test-slug',
             description='Тестовое описание',
         )
+        cls.another_user = User.objects.create_user(
+            username='Миллер',
+            first_name='Евгений',
+            last_name='Мокрушин',
+            email='fobos_media@mail.ru',
+        )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост',
@@ -31,6 +37,8 @@ class PostUrlTest(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.authorized_client2 = Client()
+        self.authorized_client2.force_login(self.another_user)
 
     def test_status_code_template_non_auth_and_auth(self):
         '''Тесты статусов ответов и шаблонов неавторизированного и
@@ -131,21 +139,32 @@ class PostUrlTest(TestCase):
     def test_post_edit_url_exists_at_desired_location(self):
         '''Страница /posts/<post_id>/edit/ доступна любому пользователю.'''
         addresses = (
-            (self.guest_client.get(f'/posts/{self.post.id}/edit/')),
-            self.guest_client.get(f'/posts/{self.post.id}/edit/', follow=True),
+            (
+                (
+                    self.guest_client.get(
+                        reverse(
+                            'posts:post_edit', kwargs={'post_id': self.post.id}
+                        )
+                    )
+                ),
+                (f'/auth/login/?next=/posts/{self.post.id}/edit/'),
+            ),
+            (
+                (
+                    self.authorized_client2.get(
+                        reverse(
+                            'posts:post_edit',
+                            kwargs={'post_id': self.post.id},
+                        )
+                    )
+                ),
+                (f'/posts/{self.post.id}/'),
+            ),
         )
 
-        for address in addresses:
+        for address, redirect in addresses:
             with self.subTest(address=address):
-                self.assertRedirects(
-                    address,
-                    (f'/auth/login/?next=/posts/{self.post.id}/edit/'),
-                )
-
-    def test_post_create_url_exists_at_desired_location(self):
-        '''Страница /create/ доступна любому пользователю.'''
-        response = self.guest_client.get('/create/')
-        self.assertRedirects(response, ('/auth/login/?next=/create/'))
+                self.assertRedirects(address, redirect)
 
     def test_name_address(self):
         '''Проверка соответствия фактических адресов страниц с их именами.'''

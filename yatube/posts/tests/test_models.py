@@ -28,7 +28,7 @@ class PostModelTest(TestCase):
         str_group_post = (
             (PostModelTest.group.title, str(PostModelTest.group.title)),
             (
-                PostModelTest.post.text[: Post.SYMBOL_POST_QUANTITY],
+                PostModelTest.post.text[:Post.SYMBOL_POST_QUANTITY],
                 str(PostModelTest.post),
             ),
         )
