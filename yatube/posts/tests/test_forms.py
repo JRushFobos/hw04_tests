@@ -36,11 +36,12 @@ class TestCreateForm(TestCase):
 
     def test_form_create(self):
         '''Проверка создания нового поста, авторизированным пользователем'''
-        post_count = Post.objects.count()
         form_data = {
             'group': self.group.id,
             'text': 'Тестовый текст поста для формы',
         }
+        Post.objects.all().delete()
+        post_count = Post.objects.count()
         response = self.authorized_client.post(
             reverse('posts:post_create'), data=form_data, follow=True
         )

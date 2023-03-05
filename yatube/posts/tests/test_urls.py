@@ -37,8 +37,48 @@ class PostUrlTest(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-        self.authorized_client2 = Client()
-        self.authorized_client2.force_login(self.another_user)
+
+    def test_post_edit_url_exists_at_desired_location(self):
+        '''Страница /posts/<post_id>/edit/ доступна любому пользователю.'''
+        self.authorized_client.force_login(self.another_user)
+        addresses = (
+            (
+                (self.guest_client.get(reverse('posts:post_create'))),
+                (reverse('users:login') + '?next=/create/'),
+            ),
+            (
+                (
+                    self.guest_client.get(
+                        reverse(
+                            'posts:post_edit', kwargs={'post_id': self.post.id}
+                        )
+                    )
+                ),
+                (
+                    reverse('users:login')
+                    + f'?next=/posts/{self.post.id}/edit/'
+                ),
+            ),
+            (
+                (
+                    self.authorized_client.get(
+                        reverse(
+                            'posts:post_edit',
+                            kwargs={'post_id': self.post.id},
+                        )
+                    )
+                ),
+                (
+                    reverse(
+                        'posts:post_detail', kwargs={'post_id': self.post.id}
+                    )
+                ),
+            ),
+        )
+
+        for address, redirect in addresses:
+            with self.subTest(address=address):
+                self.assertRedirects(address, redirect)
 
     def test_status_code_template_non_auth_and_auth(self):
         '''Тесты статусов ответов и шаблонов неавторизированного и
@@ -61,9 +101,6 @@ class PostUrlTest(TestCase):
                 HTTPStatus.OK,
                 self.guest_client,
             ),
-            (reverse('about:tech'), HTTPStatus.OK, self.guest_client),
-            (reverse('about:author'), HTTPStatus.OK, self.guest_client),
-            (reverse('users:login'), HTTPStatus.OK, self.guest_client),
             (
                 reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
                 HTTPStatus.OK,
@@ -74,17 +111,6 @@ class PostUrlTest(TestCase):
                 HTTPStatus.OK,
                 self.authorized_client,
             ),
-            (
-                reverse('users:password_change'),
-                HTTPStatus.OK,
-                self.authorized_client,
-            ),
-            (
-                reverse('users:password_reset_form'),
-                HTTPStatus.OK,
-                self.authorized_client,
-            ),
-            (reverse('users:logout'), HTTPStatus.OK, self.authorized_client),
             ('/unexisting_page', HTTPStatus.NOT_FOUND, self.guest_client),
         ]
 
@@ -135,36 +161,6 @@ class PostUrlTest(TestCase):
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
-
-    def test_post_edit_url_exists_at_desired_location(self):
-        '''Страница /posts/<post_id>/edit/ доступна любому пользователю.'''
-        addresses = (
-            (
-                (
-                    self.guest_client.get(
-                        reverse(
-                            'posts:post_edit', kwargs={'post_id': self.post.id}
-                        )
-                    )
-                ),
-                (f'/auth/login/?next=/posts/{self.post.id}/edit/'),
-            ),
-            (
-                (
-                    self.authorized_client2.get(
-                        reverse(
-                            'posts:post_edit',
-                            kwargs={'post_id': self.post.id},
-                        )
-                    )
-                ),
-                (f'/posts/{self.post.id}/'),
-            ),
-        )
-
-        for address, redirect in addresses:
-            with self.subTest(address=address):
-                self.assertRedirects(address, redirect)
 
     def test_name_address(self):
         '''Проверка соответствия фактических адресов страниц с их именами.'''

@@ -60,29 +60,37 @@ class PostViewTest(TestCase):
 
         for object, data in objects:
             with self.subTest(object=object):
-                self.assertEqual(object.text, data.text)
+                self.assertEqual(object, data)
                 self.assertEqual(object.group, data.group)
-                self.assertEqual(object.author, data.author)
 
     def test_show_correct_context_post_detail(self):
         '''Шаблон post_detail сформирован с правильным контекстом.'''
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
-        self.assertEqual(response.context['post'].text, self.post.text)
+        self.assertEqual(response.context['post'], self.post)
         self.assertEqual(response.context['post'].group, self.post.group)
-        self.assertEqual(response.context['post'].author, self.post.author)
 
     def test_show_correct_object_group_list(self):
         '''Проверка страницы группы передается объект группы.'''
-        response = self.authorized_client.get(
+        response_group_list = self.authorized_client.get(
             reverse('posts:group_list', kwargs={'slug': self.group.slug})
         )
+        response_profile = self.authorized_client.get(
+            reverse('posts:profile', kwargs={'username': self.post.author})
+        )
         objects = (
-            (response.context.get('group').title, self.post.group.title),
-            (response.context.get('group').slug, self.post.group.slug),
+            (response_profile.context.get('author'), self.post.author),
             (
-                response.context.get('group').description,
+                response_group_list.context.get('group').title,
+                self.post.group.title,
+            ),
+            (
+                response_group_list.context.get('group').slug,
+                self.post.group.slug,
+            ),
+            (
+                response_group_list.context.get('group').description,
                 self.post.group.description,
             ),
         )
@@ -105,25 +113,20 @@ class PostViewTest(TestCase):
 
     def test_post_with_group_not_shown_on_page_another_group(self):
         '''Проверяем пост с группой не отображается в другой группе.'''
-        group_list = reverse(
-            'posts:group_list', kwargs={'slug': self.group.slug}
-        )
-        post = Post.objects.exclude(group=self.post.group)
         response = self.authorized_client.get(
             reverse(
                 'posts:group_list',
                 kwargs={'slug': self.group_without_posts.slug},
             )
         )
-        self.assertNotIn(group_list, post)
         self.assertNotIn(self.post, response.context['page_obj'])
 
-    def test_author_profile_page_send_author_object(self):
-        '''Проверяем на страницу профиля автора передаем объект автора.'''
-        response = self.authorized_client.get(
-            reverse('posts:profile', kwargs={'username': self.post.author})
-        )
-        self.assertEqual(response.context['author'], self.post.author)
+    # def test_author_profile_page_send_author_object(self):
+    #     '''Проверяем на страницу профиля автора передаем объект автора.'''
+    #     response = self.authorized_client.get(
+    #         reverse('posts:profile', kwargs={'username': self.post.author})
+    #     )
+    #     self.assertEqual(response.context['author'], self.post.author)
 
 
 class Paginator(TestCase):
