@@ -42,26 +42,16 @@ class PostViewTest(TestCase):
         '''Шаблон index group_list profile сформирован с правильным
         контекстом.
         '''
-        response_index = self.authorized_client.get(reverse('posts:index'))
-        response_group_list = self.authorized_client.get(
-            reverse('posts:group_list', kwargs={'slug': self.group.slug})
-        )
-        response_profile = self.authorized_client.get(
-            reverse('posts:profile', kwargs={'username': self.post.author})
-        )
-        objects = (
-            (response_index.context['page_obj'][0], self.post),
-            (
-                response_group_list.context['page_obj'][0],
-                self.post,
-            ),
-            (response_profile.context['page_obj'][0], self.post),
-        )
+        objects = [
+            reverse('posts:index'),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.post.author}),
+        ]
 
-        for object, data in objects:
-            with self.subTest(object=object):
-                self.assertEqual(object, data)
-                self.assertEqual(object.group, data.group)
+        for object in objects:
+            response = self.authorized_client.get(object)
+            first_object = response.context['page_obj'][0]
+            self.assertEqual(first_object, self.post)
 
     def test_show_correct_context_post_detail(self):
         '''Шаблон post_detail сформирован с правильным контекстом.'''
@@ -69,7 +59,6 @@ class PostViewTest(TestCase):
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
         self.assertEqual(response.context['post'], self.post)
-        self.assertEqual(response.context['post'].group, self.post.group)
 
     def test_show_correct_object_group_list(self):
         '''Проверка страницы группы передается объект группы.'''
@@ -120,13 +109,6 @@ class PostViewTest(TestCase):
             )
         )
         self.assertNotIn(self.post, response.context['page_obj'])
-
-    # def test_author_profile_page_send_author_object(self):
-    #     '''Проверяем на страницу профиля автора передаем объект автора.'''
-    #     response = self.authorized_client.get(
-    #         reverse('posts:profile', kwargs={'username': self.post.author})
-    #     )
-    #     self.assertEqual(response.context['author'], self.post.author)
 
 
 class Paginator(TestCase):

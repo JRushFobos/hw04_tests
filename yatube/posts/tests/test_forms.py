@@ -41,7 +41,6 @@ class TestCreateForm(TestCase):
             'text': 'Тестовый текст поста для формы',
         }
         Post.objects.all().delete()
-        post_count = Post.objects.count()
         response = self.authorized_client.post(
             reverse('posts:post_create'), data=form_data, follow=True
         )
@@ -49,7 +48,7 @@ class TestCreateForm(TestCase):
             response,
             reverse('posts:profile', args=[self.post.author.username]),
         )
-        self.assertEqual(Post.objects.count(), post_count + 1)
+        self.assertEqual(Post.objects.count(), +1)
         object = Post.objects.all().first()
         self.assertEqual(object.text, form_data['text'])
         self.assertEqual(object.group.id, form_data['group'])

@@ -44,7 +44,11 @@ class PostUrlTest(TestCase):
         addresses = (
             (
                 (self.guest_client.get(reverse('posts:post_create'))),
-                (reverse('users:login') + '?next=/create/'),
+                (
+                    reverse('users:login')
+                    + '?next='
+                    + reverse('posts:post_create')
+                ),
             ),
             (
                 (
@@ -56,7 +60,10 @@ class PostUrlTest(TestCase):
                 ),
                 (
                     reverse('users:login')
-                    + f'?next=/posts/{self.post.id}/edit/'
+                    + '?next='
+                    + reverse(
+                        'posts:post_edit', kwargs={'post_id': self.post.id}
+                    )
                 ),
             ),
             (
@@ -116,10 +123,7 @@ class PostUrlTest(TestCase):
 
         for address, code, auth in templates_url_names:
             with self.subTest(address=address):
-                if auth == self.authorized_client:
-                    response = self.authorized_client.get(address)
-                else:
-                    response = self.guest_client.get(address)
+                response = auth.get(address)
                 self.assertEqual(response.status_code, code)
 
     def test_status_code_template(self):
